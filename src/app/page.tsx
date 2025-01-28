@@ -1,10 +1,23 @@
 "use client";
 import { yupResolver } from "@hookform/resolvers/yup";
+import axios from "axios";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { object, string } from "yup";
 import * as yup from "yup";
 
+//Tipagem da response
+type DataResponse = {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  localidade: string;
+  estado: string;
+};
+
+//Configuração do Schema pelo Yup
 const formSchemaAdress = object({
   cep: string().min(1, "informe o Cep"),
   logradouro: string().min(8, "informe seu endereço").required(),
@@ -15,20 +28,39 @@ const formSchemaAdress = object({
   estado: string().min(1, "informe o estado").required(),
 });
 
-type FormData = yup.InferType<typeof formSchemaAdress>;
+type FormData = yup.InferType<typeof formSchemaAdress>; //Criando a tipagem pelo schema
 
 export default function Home() {
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
     reset,
   } = useForm<FormData>({
     mode: "onChange",
     resolver: yupResolver(formSchemaAdress),
   });
 
-  const onSubmit: SubmitHandler<FormData> = (data) => console.log(data);
+  const onSubmit: SubmitHandler<FormData> = (data) => console.log(data); //Variável que recebe os valores enviados pelo formulário
+
+  //Requisição sendo feita para os determinadas CEPs
+  const getAdress = async (cep: number) => {
+    try {
+      const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
+      return response.data;
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleAdress = async (requestCep: number) => {
+    const data: DataResponse = await getAdress(requestCep);
+    setValue("logradouro", data.logradouro);
+    setValue("bairro", data.bairro);
+    setValue("estado", data.estado);
+    setValue("cidade", data.localidade);
+  };
 
   return (
     <div className="p-4 bg-slate-400 w-6/12 m-auto mt-4 rounded-md">
@@ -40,6 +72,7 @@ export default function Home() {
           type="text"
           placeholder="CEP"
           name="cep"
+          onBlur={(e) => handleAdress(e.target.value)}
         />
         {errors.cep && (
           <span className="text-sm text-red-800">{errors.cep.message}</span>
